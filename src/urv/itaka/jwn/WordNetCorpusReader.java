@@ -5,8 +5,19 @@
  */
 package urv.itaka.jwn;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Dictionary;
 import java.util.HashMap;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javafx.util.Pair;
+import jdk.nashorn.internal.runtime.regexp.joni.exception.ValueException;
 
 /**
  *
@@ -36,6 +47,7 @@ public class WordNetCorpusReader {
 
     
     static {
+        
         FILE_MAP.put(ADJ, "adj");
         FILE_MAP.put(ADV, "adv");
         FILE_MAP.put(NOUN, "noun");
@@ -58,8 +70,97 @@ public class WordNetCorpusReader {
     
 
     
-    public WordNetCorpusReader(String path) {
+    protected HashMap<String, HashMap<String, int[]>> lemmaPosOffsetsMap;
+    
+    
+    protected String rootPath;
+    
+    public WordNetCorpusReader(String rootPath) {
+        this.rootPath = rootPath;
+    }
+    
+    protected void loadLemmaPosOffsets() {
         
+        for(String suffix : WordNetCorpusReader.FILE_MAP.values()) {
+            String fileName = String.format("%s//index.%s", this.rootPath, suffix);
+            BufferedInputStream bis = getInputStream(fileName);
+            BufferedReader br = new BufferedReader(new InputStreamReader(bis));
+            
+            int i = 0;
+            
+            try {
+                for (String line = br.readLine(); line != null; i++) {
+                    if(line.startsWith(" ")) continue;
+                    
+                    String[] vals = line.split(" ");
+                    int j = 0;
+                    try {
+                        String lemma = vals[j++];
+                        String pos = vals[j++];
+                        int noOfSynsets = Integer.parseInt(vals[j++]);
+                        
+                        assert noOfSynsets > 0;
+                        
+                        int noOfPointers = Integer.parseInt(vals[j++]);
+                        
+                        j += noOfPointers;
+                        
+                        int noOfSenses = Integer.parseInt(vals[j++]);
+                        
+                        assert noOfSenses == noOfSynsets;
+                        
+                        j++;
+                        
+                        int[] offsets = new int[noOfSynsets];
+                        
+                        for (int k = 0; k < noOfSynsets; k++, j++) {
+                            offsets[k] = Integer.parseInt(vals[j]);
+                        }
+                        HashMap<String, int[]> map;
+                        if(this.lemmaPosOffsetsMap.containsKey(lemma)) {
+                            map = this.lemmaPosOffsetsMap.get(lemma);
+                        }
+                        else {
+                            map = new HashMap<>();
+                        }
+                        
+                        map.put(pos, offsets);
+                        if (pos.equals(WordNetCorpusReader.ADJ)) {
+                            map.put(WordNetCorpusReader.ADJ_SAT, offsets);
+                        }
+                        
+                        this.lemmaPosOffsetsMap.put(lemma, map); 
+                        
+                    }
+                    catch(AssertionError ae) {
+                        
+                    }
+                    catch(ValueException ex) {
+                        
+                    }
+                    
+                    
+                }
+            } catch (IOException ex) {
+                Logger.getLogger(WordNetCorpusReader.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            
+            try {
+                bis.close();
+            } catch (IOException ex) {
+                Logger.getLogger(WordNetCorpusReader.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+    }
+    
+    protected BufferedInputStream getInputStream(String fileName) {
+        try {
+            BufferedInputStream bis = new BufferedInputStream(new FileInputStream(fileName));
+            return bis;
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(WordNetCorpusReader.class.getName()).log(Level.SEVERE, null, ex);
+            return null;
+        }
     }
     
 }
