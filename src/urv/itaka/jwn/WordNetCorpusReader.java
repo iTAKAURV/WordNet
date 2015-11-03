@@ -11,12 +11,9 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.Dictionary;
 import java.util.HashMap;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javafx.util.Pair;
 import jdk.nashorn.internal.runtime.regexp.joni.exception.ValueException;
 
 /**
@@ -71,6 +68,7 @@ public class WordNetCorpusReader {
 
     
     protected HashMap<String, HashMap<String, int[]>> lemmaPosOffsetsMap;
+    protected HashMap<String, HashMap<String, String>> exceptionsMap;
     
     
     protected String rootPath;
@@ -97,25 +95,22 @@ public class WordNetCorpusReader {
                     try {
                         String lemma = vals[j++];
                         String pos = vals[j++];
+                       
                         int noOfSynsets = Integer.parseInt(vals[j++]);
-                        
                         assert noOfSynsets > 0;
                         
                         int noOfPointers = Integer.parseInt(vals[j++]);
-                        
                         j += noOfPointers;
                         
                         int noOfSenses = Integer.parseInt(vals[j++]);
-                        
                         assert noOfSenses == noOfSynsets;
                         
                         j++;
-                        
                         int[] offsets = new int[noOfSynsets];
-                        
                         for (int k = 0; k < noOfSynsets; k++, j++) {
                             offsets[k] = Integer.parseInt(vals[j]);
                         }
+                        
                         HashMap<String, int[]> map;
                         if(this.lemmaPosOffsetsMap.containsKey(lemma)) {
                             map = this.lemmaPosOffsetsMap.get(lemma);
@@ -133,10 +128,12 @@ public class WordNetCorpusReader {
                         
                     }
                     catch(AssertionError ae) {
-                        
+                        Logger.getLogger(WordNetCorpusReader.class.getName()).log(Level.SEVERE, null, String.format("Error at index.%s, line %d, Message: %s", suffix, i + 1, ae.getMessage()));
+                        //throw new WordNetException(String.format("Error at index.%s, line %d, Message: %s", suffix, i + 1, ae.getMessage()));
                     }
-                    catch(ValueException ex) {
-                        
+                    catch(ValueException ve) {
+                        Logger.getLogger(WordNetCorpusReader.class.getName()).log(Level.SEVERE, null, String.format("Error at index.%s, line %d, Message: %s", suffix, i + 1, ve.getMessage()));
+                        //throw new WordNetException(String.format("Error at index.%s, line %d, Message: %s", suffix, i + 1, ve.getMessage()));
                     }
                     
                     
@@ -150,6 +147,25 @@ public class WordNetCorpusReader {
             } catch (IOException ex) {
                 Logger.getLogger(WordNetCorpusReader.class.getName()).log(Level.SEVERE, null, ex);
             }
+        }
+    }
+    
+    protected void loadExceptionMap() {
+        for(String pos: WordNetCorpusReader.FILE_MAP.keySet()) {
+            String suffix = WordNetCorpusReader.FILE_MAP.get(pos);
+            this.exceptionsMap.put(pos, new HashMap<>());
+            String fileName = String.format("%s//%s.exc", this.rootPath, suffix);
+            BufferedInputStream bis = getInputStream(fileName);
+            BufferedReader br = new BufferedReader(new InputStreamReader(bis)); 
+            try {
+                for (String line = br.readLine(); line != null;) {
+                    String [] terms = line.split(" ");
+                    
+                }
+            } catch (IOException ex) {
+                Logger.getLogger(WordNetCorpusReader.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            
         }
     }
     
